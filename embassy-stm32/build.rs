@@ -14,7 +14,7 @@ fn main() {
     let out_dir = &PathBuf::from(env::var_os("OUT_DIR").unwrap());
     let out_file = out_dir.join("generated.rs").to_string_lossy().to_string();
 
-    let exit_code = Command::new("python3")
+    let exit_code = Command::new("python")
         .args(&["gen.py", &chip_name, &out_file])
         .status()
         .expect("failed to execute gen.py");
