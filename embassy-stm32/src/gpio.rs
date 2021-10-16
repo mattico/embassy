@@ -114,6 +114,31 @@ impl<'d, T: Pin> Input<'d, T> {
         }
     }
 
+    pub fn set_pull(&mut self, pull: Pull) {
+        cortex_m::interrupt::free(|_| unsafe {
+            let r = self.pin.block();
+            let n = self.pin.pin() as usize;
+            #[cfg(gpio_v1)]
+            {
+                let crlh = if n < 8 { 0 } else { 1 };
+                match pull {
+                    Pull::Up => r.bsrr().write(|w| w.set_bs(n, true)),
+                    Pull::Down => r.bsrr().write(|w| w.set_br(n, true)),
+                    Pull::None => {}
+                }
+                if pull == Pull::None {
+                    r.cr(crlh)
+                        .modify(|w| w.set_cnf(n % 8, vals::Cnf::OPENDRAIN));
+                } else {
+                    r.cr(crlh)
+                        .modify(|w| w.set_cnf(n % 8, vals::Cnf::ALTPUSHPULL));
+                }
+            }
+            #[cfg(gpio_v2)]
+            r.pupdr().modify(|w| w.set_pupdr(n, pull.into()));
+        });
+    }
+
     /// Deconfigures the pin and returns it
     pub fn free(mut self) -> T {
         unsafe {
@@ -311,6 +336,21 @@ impl<'d, T: Pin> OutputOpenDrain<'d, T> {
             pin,
             phantom: PhantomData,
         }
+    }
+
+    pub fn set_pull(&mut self, pull: Pull) {
+        cortex_m::interrupt::free(|_| unsafe {
+            let r = self.pin.block();
+            let n = self.pin.pin() as usize;
+            #[cfg(gpio_v1)]
+            match pull {
+                Pull::Up => r.bsrr().write(|w| w.set_bs(n, true)),
+                Pull::Down => r.bsrr().write(|w| w.set_br(n, true)),
+                Pull::None => {}
+            }
+            #[cfg(gpio_v2)]
+            r.pupdr().modify(|w| w.set_pupdr(n, pull.into()));
+        });
     }
     
     /// Deconfigures the pin and returns it
