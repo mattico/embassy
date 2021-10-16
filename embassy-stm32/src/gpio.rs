@@ -113,6 +113,15 @@ impl<'d, T: Pin> Input<'d, T> {
             phantom: PhantomData,
         }
     }
+
+    /// Deconfigures the pin and returns it
+    pub fn free(mut self) -> T {
+        unsafe {
+            let pin = self.pin.duplicate();
+            drop(self);
+            pin
+        }
+    }
 }
 
 impl<'d, T: Pin> Drop for Input<'d, T> {
@@ -189,6 +198,15 @@ impl<'d, T: Pin> Output<'d, T> {
         Self {
             pin,
             phantom: PhantomData,
+        }
+    }
+
+    /// Deconfigures the pin and returns it
+    pub fn free(mut self) -> T {
+        unsafe {
+            let pin = self.pin.duplicate();
+            drop(self);
+            pin
         }
     }
 }
@@ -292,6 +310,15 @@ impl<'d, T: Pin> OutputOpenDrain<'d, T> {
         Self {
             pin,
             phantom: PhantomData,
+        }
+    }
+    
+    /// Deconfigures the pin and returns it
+    pub fn free(mut self) -> T {
+        unsafe {
+            let pin = self.pin.duplicate();
+            drop(self);
+            pin
         }
     }
 }
@@ -474,6 +501,8 @@ pub(crate) mod sealed {
                 .ospeedr()
                 .modify(|w| w.set_ospeedr(pin, speed.into()));
         }
+
+        unsafe fn duplicate(&mut self) -> Self;
     }
 
     pub trait OptionalPin {}
@@ -533,6 +562,13 @@ impl sealed::Pin for AnyPin {
     #[inline]
     fn pin_port(&self) -> u8 {
         self.pin_port
+    }
+
+    #[inline]
+    unsafe fn duplicate(&mut self) -> AnyPin {
+        AnyPin {
+            pin_port: self.pin_port,
+        }
     }
 }
 
@@ -595,6 +631,12 @@ crate::pac::pins!(
             #[inline]
             fn pin_port(&self) -> u8 {
                 $port_num * 16 + $pin_num
+            }
+
+            #[inline]
+            unsafe fn duplicate(&mut self) -> Self {
+                use embassy::util::Steal;
+                peripherals::$pin_name::steal()
             }
         }
     };
