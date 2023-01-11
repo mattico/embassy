@@ -1,5 +1,5 @@
 [target.thumbv7em-none-eabihf]
-runner = 'probe-run --chip STM32H743ZITx'
+runner = 'probe-run --chip STM32H743XIHx --measure-stack --shorten-paths --speed 24000 --connect-under-reset --out-file ../trace.txt'
 
 [build]
 target = "thumbv7em-none-eabihf" # Cortex-M4F and Cortex-M7F (with FPU)

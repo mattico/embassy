@@ -146,6 +146,10 @@ fn main() {
             continue;
         }
 
+        if METADATA.line.starts_with("STM32H7") {
+            panic!("Doin H7: {:#?}", METADATA.peripherals);
+        }
+
         if let Some(rcc) = &p.rcc {
             let en = rcc.enable.as_ref().unwrap();
 
@@ -171,6 +175,10 @@ fn main() {
             } else {
                 TokenStream::new()
             };
+
+            if p.name.contains("usb") || p.name.contains("USB") {
+                panic!("Peripheral: {}", p.name);
+            }
 
             let pname = format_ident!("{}", p.name);
             let clk = format_ident!("{}", rcc.clock.to_ascii_lowercase());
