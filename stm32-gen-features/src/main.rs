@@ -1,17 +1,9 @@
-use gen_features::{
-    chip_names_and_cores, embassy_stm32_needed_data, generate_cargo_toml_file, stm32_metapac_needed_data,
-};
+use gen_features::{chip_data, embassy_stm32_needed_data, generate_cargo_toml_file, stm32_metapac_needed_data};
 
 fn main() {
-    let names_and_cores = chip_names_and_cores();
-    update_cargo_file(
-        "../embassy-stm32/Cargo.toml",
-        &embassy_stm32_needed_data(&names_and_cores),
-    );
-    update_cargo_file(
-        "../stm32-metapac/Cargo.toml",
-        &stm32_metapac_needed_data(&names_and_cores),
-    );
+    let data = chip_data();
+    update_cargo_file("../embassy-stm32/Cargo.toml", &embassy_stm32_needed_data(&data));
+    update_cargo_file("../stm32-metapac/Cargo.toml", &stm32_metapac_needed_data(&data));
 }
 
 /// Update a Cargo.toml file
