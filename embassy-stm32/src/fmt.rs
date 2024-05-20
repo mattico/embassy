@@ -84,18 +84,10 @@ macro_rules! todo {
 }
 
 #[cfg(not(feature = "defmt"))]
-macro_rules! unreachable {
-    ($($x:tt)*) => {
-        ::core::unreachable!($($x)*)
-    };
-}
+pub use ::core::unreachable;
 
 #[cfg(feature = "defmt")]
-macro_rules! unreachable {
-    ($($x:tt)*) => {
-        ::defmt::unreachable!($($x)*)
-    };
-}
+pub use ::defmt::unreachable;
 
 macro_rules! panic {
     ($($x:tt)*) => {
