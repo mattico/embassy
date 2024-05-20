@@ -112,8 +112,10 @@ impl<'d, T: Instance, M: PeriMode> Spi<'d, T, M> {
         tx_dma: Option<ChannelAndRequest<'d>>,
         rx_dma: Option<ChannelAndRequest<'d>>,
         config: Config,
+        master: bool,
     ) -> Self {
         into_ref!(peri);
+
 
         let pclk = T::frequency();
         let freq = config.frequency;
@@ -135,7 +137,7 @@ impl<'d, T: Instance, M: PeriMode> Spi<'d, T, M> {
                 w.set_cpha(cpha);
                 w.set_cpol(cpol);
 
-                w.set_mstr(vals::Mstr::MASTER);
+                w.set_mstr(if master { vals::Mstr::MASTER } else { vals::Mstr::SLAVE });
                 w.set_br(br);
                 w.set_spe(true);
                 w.set_lsbfirst(lsbfirst);
@@ -161,7 +163,7 @@ impl<'d, T: Instance, M: PeriMode> Spi<'d, T, M> {
                 w.set_cpha(cpha);
                 w.set_cpol(cpol);
 
-                w.set_mstr(vals::Mstr::MASTER);
+                w.set_mstr(if master { vals::Mstr::MASTER } else { vals::Mstr::SLAVE });
                 w.set_br(br);
                 w.set_lsbfirst(lsbfirst);
                 w.set_ssi(true);
@@ -181,8 +183,16 @@ impl<'d, T: Instance, M: PeriMode> Spi<'d, T, M> {
                 w.set_cpol(cpol);
                 w.set_lsbfirst(lsbfirst);
                 w.set_ssm(true);
-                w.set_master(vals::Master::MASTER);
-                w.set_comm(vals::Comm::FULLDUPLEX);
+                w.set_master(if master { vals::Mstr::MASTER } else { vals::Mstr::SLAVE });
+                match (master, miso, mosi) {
+                    (_, Some(_), Some(_)) => w.set_comm(vals::Comm::FULLDUPLEX),
+                    (true, Some(_), None) => w.set_comm(vals::Comm::RECEIVER),
+                    (true, None, Some(_)) => w.set_comm(vals::Comm::TRANSMITTER),
+                    (false, Some(_), None) => w.set_comm(vals::Comm::RECEIVER),
+                    (false, None, Some(_)) => w.set_comm(vals::Comm::TRANSMITTER),
+                    (_, None, None) => unreachable!("No SPI Pins"),
+                }
+                w.set_sp(vals::Sp::TI);
                 w.set_ssom(vals::Ssom::ASSERTED);
                 w.set_midi(0);
                 w.set_mssi(0);
@@ -413,6 +423,7 @@ impl<'d, T: Instance> Spi<'d, T, Blocking> {
             None,
             None,
             config,
+            true,
         )
     }
 
@@ -431,6 +442,27 @@ impl<'d, T: Instance> Spi<'d, T, Blocking> {
             None,
             None,
             config,
+            true,
+        )
+    }
+
+    /// Create a new SPI driver, in RX-only slave mode (only MOSI pin, no MISO).
+    pub fn new_blocking_rxonly_slave(
+        peri: impl Peripheral<P = T> + 'd,
+        sck: impl Peripheral<P = impl SckPin<T>> + 'd,
+        mosi: impl Peripheral<P = impl MosiPin<T>> + 'd,
+        rx_dma: impl Peripheral<P = impl RxDma<T>> + 'd,
+        config: Config,
+    ) -> Self {
+        Self::new_inner(
+            peri,
+            new_pin!(sck, AFType::Input, Speed::VeryHigh, config.sck_pull_mode()),
+            new_pin!(mosi, AFType::Input, Speed::VeryHigh),
+            None,
+            None,
+            new_dma!(rx_dma),
+            config,
+            false,
         )
     }
 
@@ -449,6 +481,7 @@ impl<'d, T: Instance> Spi<'d, T, Blocking> {
             None,
             None,
             config,
+            true,
         )
     }
 
@@ -468,6 +501,7 @@ impl<'d, T: Instance> Spi<'d, T, Blocking> {
             None,
             None,
             config,
+            true,
         )
     }
 }
@@ -491,6 +525,7 @@ impl<'d, T: Instance> Spi<'d, T, Async> {
             new_dma!(tx_dma),
             new_dma!(rx_dma),
             config,
+            true,
         )
     }
 
@@ -510,6 +545,27 @@ impl<'d, T: Instance> Spi<'d, T, Async> {
             None,
             new_dma!(rx_dma),
             config,
+            true,
+        )
+    }
+
+    /// Create a new SPI driver, in RX-only slave mode (only MOSI pin, no MISO).
+    pub fn new_rxonly_slave(
+        peri: impl Peripheral<P = T> + 'd,
+        sck: impl Peripheral<P = impl SckPin<T>> + 'd,
+        mosi: impl Peripheral<P = impl MosiPin<T>> + 'd,
+        rx_dma: impl Peripheral<P = impl RxDma<T>> + 'd,
+        config: Config,
+    ) -> Self {
+        Self::new_inner(
+            peri,
+            new_pin!(sck, AFType::Input, Speed::VeryHigh, config.sck_pull_mode()),
+            new_pin!(mosi, AFType::Input, Speed::VeryHigh),
+            None,
+            None,
+            new_dma!(rx_dma),
+            config,
+            false,
         )
     }
 
@@ -529,6 +585,7 @@ impl<'d, T: Instance> Spi<'d, T, Async> {
             new_dma!(tx_dma),
             None,
             config,
+            true,
         )
     }
 
@@ -549,6 +606,7 @@ impl<'d, T: Instance> Spi<'d, T, Async> {
             new_dma!(tx_dma),
             None,
             config,
+            true,
         )
     }
 
@@ -569,7 +627,7 @@ impl<'d, T: Instance> Spi<'d, T, Async> {
         config.bit_order = BitOrder::MsbFirst;
         config.frequency = freq;
 
-        Self::new_inner(peri, None, None, None, new_dma!(tx_dma), new_dma!(rx_dma), config)
+        Self::new_inner(peri, None, None, None, new_dma!(tx_dma), new_dma!(rx_dma), config, true)
     }
 
     #[allow(dead_code)]
@@ -579,7 +637,7 @@ impl<'d, T: Instance> Spi<'d, T, Async> {
         rx_dma: impl Peripheral<P = impl RxDma<T>> + 'd,
         config: Config,
     ) -> Self {
-        Self::new_inner(peri, None, None, None, new_dma!(tx_dma), new_dma!(rx_dma), config)
+        Self::new_inner(peri, None, None, None, new_dma!(tx_dma), new_dma!(rx_dma), config, true)
     }
 
     /// SPI write, using DMA.
